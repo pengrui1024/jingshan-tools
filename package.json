@@ -1,0 +1,13 @@
+{
+  "name": "jingshan-community-tools",
+  "version": "1.0.0",
+  "private": true,
+  "description": "京山社区业务工具站",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

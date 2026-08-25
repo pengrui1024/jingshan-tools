@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>8421通报生成器</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+</head>
+<body>
+  <div class="tool-header">
+    <a href="/" class="back-btn">‹</a>
+    <h1>8421通报生成器</h1>
+  </div>
+
+  <div class="tool-content">
+    <div class="date-bar">
+      通报日期：<input type="text" id="dateInput" placeholder="如：8月25日" value="" style="width:120px">
+    </div>
+
+    <!-- 城东 -->
+    <div class="section">
+      <div class="section-title east">城东分局（张嘉辰 / 胡慧敏）</div>
+      <table class="input-table">
+        <thead>
+          <tr>
+            <th style="width:28%">厅店</th>
+            <th>入户</th>
+            <th>录入</th>
+            <th>装维</th>
+            <th>存量</th>
+            <th>集智</th>
+            <th>全家福</th>
+          </tr>
+        </thead>
+        <tbody id="eastBody"></tbody>
+      </table>
+    </div>
+
+    <!-- 城西 -->
+    <div class="section">
+      <div class="section-title west">城西分局（钱亚蓉 / 王小兰）</div>
+      <table class="input-table">
+        <thead>
+          <tr>
+            <th style="width:28%">厅店</th>
+            <th>入户</th>
+            <th>录入</th>
+            <th>装维</th>
+            <th>存量</th>
+            <th>集智</th>
+            <th>全家福</th>
+          </tr>
+        </thead>
+        <tbody id="westBody"></tbody>
+      </table>
+    </div>
+
+    <div class="btn-wrap">
+      <button class="btn" onclick="generateReport()">生成通报图</button>
+    </div>
+
+    <div class="preview-area" id="previewArea" style="display:none;">
+      <p style="color:#888;font-size:0.8rem;margin-bottom:0.6rem;">长按图片可保存或转发</p>
+      <img id="previewImg" alt="通报预览">
+    </div>
+  </div>
+
+  <!-- 隐藏截图区 -->
+  <div id="capture-area" class="hidden-capture">
+    <table class="report">
+      <tr class="title-row"><td colspan="10" id="titleCell">京山社区执行通报（X月X日）</td></tr>
+      <tr class="hdr">
+        <td style="width:7%">分局</td><td style="width:6.5%">分局长</td><td style="width:6.5%">渠道经理</td><td style="width:20%">厅店名称</td>
+        <td style="width:7.5%">8421入户</td><td style="width:8%">当天商机录入</td><td style="width:8%">装维提供商机</td><td style="width:7.5%">存量提质</td><td style="width:7%">新装集智</td><td style="width:7%">新装全家福</td>
+      </tr>
+      <tbody id="reportBody"></tbody>
+    </table>
+  </div>
+
+  <script>
+  const eastStores = [
+    '京山城区大龙专营店',
+    '京山城区申公路承枫专营店',
+    '京山城区书香街智慧家庭体验店'
+  ];
+  const westStores = [
+    '京山城区城西鑫和专营店',
+    '京山城区未来城专营店',
+    '京山城区大中路专营店',
+    '京山城区棉纺厂智慧家庭体验店'
+  ];
+  const fields = ['入户', '录入', '装维', '存量', '集智', '全家福'];
+
+  function initTables() {
+    const eastBody = document.getElementById('eastBody');
+    eastStores.forEach((name, i) => {
+      const tr = document.createElement('tr');
+      tr.className = 'east-bg';
+      tr.innerHTML = '<td class="store-name">' + name + '</td>' +
+        fields.map(function(f, j) {
+          return '<td><input type="number" id="east_' + i + '_' + j + '" value="0" step="0.5" onfocus="this.select()"></td>';
+        }).join('');
+      eastBody.appendChild(tr);
+    });
+
+    const westBody = document.getElementById('westBody');
+    westStores.forEach((name, i) => {
+      const tr = document.createElement('tr');
+      tr.className = 'west-bg';
+      tr.innerHTML = '<td class="store-name">' + name + '</td>' +
+        fields.map(function(f, j) {
+          return '<td><input type="number" id="west_' + i + '_' + j + '" value="0" step="0.5" onfocus="this.select()"></td>';
+        }).join('');
+      westBody.appendChild(tr);
+    });
+
+    var now = new Date();
+    document.getElementById('dateInput').value = (now.getMonth() + 1) + '月' + now.getDate() + '日';
+  }
+
+  function getVal(id) {
+    var v = parseFloat(document.getElementById(id).value);
+    return isNaN(v) ? 0 : v;
+  }
+
+  function fmt(v) {
+    return v % 1 === 0 ? v.toString() : v.toFixed(1);
+  }
+
+  function generateReport() {
+    var dateStr = document.getElementById('dateInput').value || '8月25日';
+    document.getElementById('titleCell').textContent = '京山社区执行通报（' + dateStr + '）';
+
+    var eastData = eastStores.map(function(s, i) {
+      return fields.map(function(f, j) { return getVal('east_' + i + '_' + j); });
+    });
+    var westData = westStores.map(function(s, i) {
+      return fields.map(function(f, j) { return getVal('west_' + i + '_' + j); });
+    });
+
+    var eastSum = fields.map(function(_, j) { return eastData.reduce(function(s, r) { return s + r[j]; }, 0); });
+    var westSum = fields.map(function(_, j) { return westData.reduce(function(s, r) { return s + r[j]; }, 0); });
+    var grandTotal = eastSum.map(function(v, j) { return v + westSum[j]; });
+
+    var html = '';
+    html += '<tr class="east-row"><td rowspan="4">城东分局</td><td rowspan="3">张嘉辰</td><td rowspan="3">胡慧敏</td>';
+    eastStores.forEach(function(name, i) {
+      if (i > 0) html += '<tr class="east-row">';
+      html += '<td>' + name + '</td>';
+      eastData[i].forEach(function(v) { html += '<td>' + fmt(v) + '</td>'; });
+      html += '</tr>';
+    });
+    html += '<tr class="east-sum"><td colspan="3">合计</td>';
+    eastSum.forEach(function(v) { html += '<td>' + fmt(v) + '</td>'; });
+    html += '</tr>';
+
+    html += '<tr class="west-row"><td rowspan="5">城西分局</td><td rowspan="4">钱亚蓉</td><td rowspan="4">王小兰</td>';
+    westStores.forEach(function(name, i) {
+      if (i > 0) html += '<tr class="west-row">';
+      html += '<td>' + name + '</td>';
+      westData[i].forEach(function(v) { html += '<td>' + fmt(v) + '</td>'; });
+      html += '</tr>';
+    });
+    html += '<tr class="west-sum"><td colspan="3">合计</td>';
+    westSum.forEach(function(v) { html += '<td>' + fmt(v) + '</td>'; });
+    html += '</tr>';
+
+    html += '<tr class="grand-total"><td colspan="4">社区执行总计</td>';
+    grandTotal.forEach(function(v) { html += '<td class="gt-num">' + fmt(v) + '</td>'; });
+    html += '</tr>';
+
+    document.getElementById('reportBody').innerHTML = html;
+
+    var captureEl = document.getElementById('capture-area');
+    captureEl.style.display = 'block';
+
+    html2canvas(captureEl, {
+      backgroundColor: '#ffffff',
+      scale: 2,
+      width: 960,
+      windowWidth: 960
+    }).then(function(canvas) {
+      var img = canvas.toDataURL('image/png');
+      document.getElementById('previewImg').src = img;
+      document.getElementById('previewArea').style.display = 'block';
+      captureEl.style.display = 'none';
+      document.getElementById('previewImg').scrollIntoView({ behavior: 'smooth' });
+    });
+  }
+
+  initTables();
+  </script>
+</body>
+</html>
