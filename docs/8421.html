@@ -6,6 +6,7 @@
   <title>8421通报生成器</title>
   <link rel="stylesheet" href="css/style.css">
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="js/github-sync.js"></script>
 </head>
 <body>
   <div class="tool-header">
@@ -14,8 +15,22 @@
   </div>
 
   <div class="tool-content">
+    <!-- Token设置（首次使用需要输入一次） -->
+    <div id="tokenSetup" style="display:none;background:#FFF3E0;border:1px solid #FFB74D;border-radius:8px;padding:0.8rem;margin-bottom:0.8rem;">
+      <p style="font-size:0.8rem;color:#E65100;margin-bottom:0.5rem;">首次使用请输入授权码（只需输入一次，自动保存）</p>
+      <div style="display:flex;gap:0.5rem;">
+        <input type="text" id="tokenInput" placeholder="粘贴授权码" style="flex:1;font-size:0.8rem;padding:0.5rem;border:1px solid #FFB74D;border-radius:6px;">
+        <button onclick="setupToken()" style="background:#FF9800;color:#fff;border:none;padding:0.5rem 1rem;border-radius:6px;font-size:0.8rem;cursor:pointer;">确认</button>
+      </div>
+    </div>
+
+    <!-- 状态提示 -->
+    <div id="syncStatus" style="text-align:center;font-size:0.75rem;color:#999;margin-bottom:0.6rem;">
+      正在连接云端...
+    </div>
+
     <div class="date-bar">
-      通报日期：<input type="text" id="dateInput" placeholder="如：8月25日" value="" style="width:120px">
+      通报日期：<input type="text" id="dateInput" placeholder="如：8月25日" value="" style="width:120px" onchange="onDateChange()">
     </div>
 
     <!-- 城东 -->
@@ -58,8 +73,11 @@
 
     <div class="btn-wrap">
       <button class="btn" onclick="saveAndGenerate()">保存并生成通报图</button>
-      <button class="btn btn-history" onclick="showHistory()">历史记录</button>
+      <button class="btn btn-history" onclick="showHistory()">云端记录</button>
     </div>
+
+    <!-- 保存状态 -->
+    <div id="saveStatus" style="text-align:center;font-size:0.75rem;color:#999;min-height:1rem;margin-bottom:0.5rem;"></div>
 
     <div class="preview-area" id="previewArea" style="display:none;">
       <p style="color:#888;font-size:0.8rem;margin-bottom:0.6rem;">长按图片可保存或转发</p>
@@ -71,7 +89,7 @@
   <div id="historyModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;">
     <div style="background:#fff;max-width:500px;margin:60px auto;border-radius:12px;max-height:80vh;overflow-y:auto;">
       <div style="padding:1rem 1.2rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;">
-        <h3 style="font-size:1rem;">历史记录</h3>
+        <h3 style="font-size:1rem;">云端历史记录</h3>
         <span onclick="closeHistory()" style="font-size:1.4rem;cursor:pointer;color:#999;">×</span>
       </div>
       <div id="historyList" style="padding:0.8rem;"></div>
@@ -103,7 +121,6 @@
     '京山城区棉纺厂智慧家庭体验店'
   ];
   const fields = ['入户', '录入', '装维', '存量', '集智', '全家福'];
-  const STORAGE_KEY = '8421_data_history';
 
   function initTables() {
     const eastBody = document.getElementById('eastBody');
@@ -112,7 +129,7 @@
       tr.className = 'east-bg';
       tr.innerHTML = '<td class="store-name">' + name + '</td>' +
         fields.map(function(f, j) {
-          return '<td><input type="number" id="east_' + i + '_' + j + '" value="0" step="0.5" onfocus="this.select()" onchange="autoSave()"></td>';
+          return '<td><input type="number" id="east_' + i + '_' + j + '" value="0" step="0.5" onfocus="this.select()"></td>';
         }).join('');
       eastBody.appendChild(tr);
     });
@@ -123,7 +140,7 @@
       tr.className = 'west-bg';
       tr.innerHTML = '<td class="store-name">' + name + '</td>' +
         fields.map(function(f, j) {
-          return '<td><input type="number" id="west_' + i + '_' + j + '" value="0" step="0.5" onfocus="this.select()" onchange="autoSave()"></td>';
+          return '<td><input type="number" id="west_' + i + '_' + j + '" value="0" step="0.5" onfocus="this.select()"></td>';
         }).join('');
       westBody.appendChild(tr);
     });
@@ -131,35 +148,66 @@
     var now = new Date();
     document.getElementById('dateInput').value = (now.getMonth() + 1) + '月' + now.getDate() + '日';
 
-    // 尝试加载今天的数据
-    loadTodayData();
-  }
-
-  // 自动保存到当前日期草稿
-  function autoSave() {
-    var dateStr = document.getElementById('dateInput').value;
-    if (!dateStr) return;
-    var data = collectData();
-    var drafts = JSON.parse(localStorage.getItem('8421_drafts') || '{}');
-    drafts[dateStr] = data;
-    localStorage.setItem('8421_drafts', JSON.stringify(drafts));
-  }
-
-  // 加载今天草稿
-  function loadTodayData() {
-    var dateStr = document.getElementById('dateInput').value;
-    var drafts = JSON.parse(localStorage.getItem('8421_drafts') || '{}');
-    if (drafts[dateStr]) {
-      fillData(drafts[dateStr]);
+    // 检查Token是否已设置
+    if (!GITHUB_CONFIG.token) {
+      document.getElementById('tokenSetup').style.display = 'block';
+      document.getElementById('syncStatus').textContent = '请先输入授权码';
+      document.getElementById('syncStatus').style.color = '#FF9800';
+    } else {
+      onDateChange();
     }
   }
 
-  // 收集当前数据
+  // 设置Token
+  function setupToken() {
+    var token = document.getElementById('tokenInput').value.trim();
+    if (!token) {
+      alert('请输入授权码');
+      return;
+    }
+    saveToken(token);
+    document.getElementById('tokenSetup').style.display = 'none';
+    document.getElementById('syncStatus').textContent = '授权成功，正在加载云端数据...';
+    document.getElementById('syncStatus').style.color = '#4CAF50';
+    onDateChange();
+  }
+
+  // 日期变更时从云端加载数据
+  async function onDateChange() {
+    var dateStr = document.getElementById('dateInput').value;
+    if (!dateStr) return;
+    document.getElementById('syncStatus').textContent = '正在从云端加载' + dateStr + '数据...';
+    document.getElementById('syncStatus').style.color = '#999';
+    var loaded = await loadGitHubData(dateStr);
+    if (loaded) {
+      document.getElementById('syncStatus').textContent = '已加载云端数据（' + dateStr + '）';
+      document.getElementById('syncStatus').style.color = '#4CAF50';
+    } else {
+      document.getElementById('syncStatus').textContent = '云端无' + dateStr + '数据，可填写新数据';
+      document.getElementById('syncStatus').style.color = '#999';
+      resetForm();
+    }
+  }
+
+  function resetForm() {
+    eastStores.forEach(function(s, i) {
+      fields.forEach(function(f, j) {
+        document.getElementById('east_' + i + '_' + j).value = '0';
+      });
+    });
+    westStores.forEach(function(s, i) {
+      fields.forEach(function(f, j) {
+        document.getElementById('west_' + i + '_' + j).value = '0';
+      });
+    });
+  }
+
   function collectData() {
     var data = {
       date: document.getElementById('dateInput').value,
       east: [],
-      west: []
+      west: [],
+      savedAt: new Date().toISOString()
     };
     eastStores.forEach(function(s, i) {
       data.east.push(fields.map(function(f, j) { return getVal('east_' + i + '_' + j); }));
@@ -170,7 +218,6 @@
     return data;
   }
 
-  // 填充数据到表单
   function fillData(data) {
     if (data.date) document.getElementById('dateInput').value = data.date;
     if (data.east) {
@@ -191,18 +238,23 @@
     }
   }
 
-  // 保存并生成
-  function saveAndGenerate() {
-    autoSave();
-    // 同时保存到历史记录
+  async function saveAndGenerate() {
+    var dateStr = document.getElementById('dateInput').value;
+    if (!dateStr) {
+      alert('请先填写通报日期');
+      return;
+    }
     var data = collectData();
-    var history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    // 去重：同一天只保留最新
-    history = history.filter(function(h) { return h.date !== data.date; });
-    history.unshift(data);
-    // 最多保留30天
-    if (history.length > 30) history = history.slice(0, 30);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+    document.getElementById('saveStatus').textContent = '正在保存到云端...';
+    document.getElementById('saveStatus').style.color = '#999';
+    try {
+      await saveToGitHub(dateStr, data);
+      document.getElementById('saveStatus').textContent = '已保存到云端';
+      document.getElementById('saveStatus').style.color = '#4CAF50';
+    } catch(e) {
+      document.getElementById('saveStatus').textContent = '保存失败：' + e.message;
+      document.getElementById('saveStatus').style.color = '#F44336';
+    }
     generateReport();
   }
 
@@ -276,38 +328,41 @@
     });
   }
 
-  // 历史记录
-  function showHistory() {
-    var history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  async function showHistory() {
     var listEl = document.getElementById('historyList');
-    if (history.length === 0) {
-      listEl.innerHTML = '<p style="text-align:center;color:#999;padding:2rem 0;">暂无历史记录</p>';
-    } else {
-      var html = '';
-      history.forEach(function(data, i) {
-        var totals = [0,0,0,0,0,0];
-        data.east.forEach(function(row){ row.forEach(function(v,j){ totals[j]+=v; }); });
-        data.west.forEach(function(row){ row.forEach(function(v,j){ totals[j]+=v; }); });
-        html += '<div style="border:1px solid #eee;border-radius:8px;padding:0.8rem;margin-bottom:0.6rem;cursor:pointer;" onclick="loadHistory(' + i + ')">';
-        html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
-        html += '<span style="font-weight:bold;font-size:0.95rem;">' + data.date + '</span>';
-        html += '<span style="font-size:0.75rem;color:#999;">点击载入</span>';
-        html += '</div>';
-        html += '<div style="font-size:0.75rem;color:#888;margin-top:0.3rem;">总计：入户' + fmt(totals[0]) + ' / 录入' + fmt(totals[1]) + ' / 存量' + fmt(totals[3]) + ' / 集智' + fmt(totals[4]) + ' / 全家福' + fmt(totals[5]) + '</div>';
-        html += '</div>';
-      });
-      listEl.innerHTML = html;
-    }
+    listEl.innerHTML = '<p style="text-align:center;color:#999;padding:2rem 0;">正在加载云端记录...</p>';
     document.getElementById('historyModal').style.display = 'block';
+
+    var dates = await listGitHubData();
+    if (dates.length === 0) {
+      listEl.innerHTML = '<p style="text-align:center;color:#999;padding:2rem 0;">暂无云端记录</p>';
+      return;
+    }
+
+    var html = '';
+    for (var i = 0; i < dates.length; i++) {
+      var dateStr = dates[i];
+      var data = await loadFromGitHub(dateStr);
+      if (!data) continue;
+      var totals = [0,0,0,0,0,0];
+      data.east.forEach(function(row){ row.forEach(function(v,j){ totals[j]+=v; }); });
+      data.west.forEach(function(row){ row.forEach(function(v,j){ totals[j]+=v; }); });
+      html += '<div style="border:1px solid #eee;border-radius:8px;padding:0.8rem;margin-bottom:0.6rem;cursor:pointer;" onclick="loadHistoryData(\'' + dateStr + '\')">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
+      html += '<span style="font-weight:bold;font-size:0.95rem;">' + dateStr + '</span>';
+      html += '<span style="font-size:0.75rem;color:#999;">点击载入</span>';
+      html += '</div>';
+      html += '<div style="font-size:0.75rem;color:#888;margin-top:0.3rem;">总计：入户' + fmt(totals[0]) + ' / 录入' + fmt(totals[1]) + ' / 存量' + fmt(totals[3]) + ' / 集智' + fmt(totals[4]) + ' / 全家福' + fmt(totals[5]) + '</div>';
+      html += '</div>';
+    }
+    listEl.innerHTML = html;
   }
 
-  function loadHistory(idx) {
-    var history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    if (history[idx]) {
-      fillData(history[idx]);
-      closeHistory();
-      generateReport();
-    }
+  async function loadHistoryData(dateStr) {
+    document.getElementById('dateInput').value = dateStr;
+    await loadGitHubData(dateStr);
+    closeHistory();
+    generateReport();
   }
 
   function closeHistory() {
