@@ -8,19 +8,26 @@
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="js/github-sync.js"></script>
   <style>
-    /* 831通报专用配色覆盖（优先级高于通用样式） */
-    #capture-area table.report-831 td { font-size: 12.5px; padding: 7px 3px; }
+    /* 831通报专用配色覆盖 */
+    #capture-area table.report-831 { width: 1200px; }
+    #capture-area table.report-831 td { font-size: 12px; padding: 6px 2px; }
     #capture-area .report-831 .title-row td {
       background: #92CDDC; color: #000; font-size: 17px; font-weight: bold;
       padding: 11px; letter-spacing: 2px;
     }
-    #capture-area .report-831 .hdr td { background: #92CDDC; font-weight: bold; font-size: 12px; padding: 9px 3px; color: #000; }
+    #capture-area .report-831 .hdr td { background: #92CDDC; font-weight: bold; font-size: 11px; padding: 8px 2px; color: #000; }
     #capture-area .report-831 .east-row td { background: #F2DBDB; }
     #capture-area .report-831 .west-row td { background: #D6E3BC; }
     #capture-area .report-831 .east-sum td { background: #F2DBDB; font-weight: bold; color: #FF0000; }
     #capture-area .report-831 .west-sum td { background: #D6E3BC; font-weight: bold; color: #FF0000; }
-    #capture-area .report-831 .grand-total td { background: #92CDDC; font-weight: bold; color: #FF0000; font-size: 13.5px; padding: 9px 3px; }
+    #capture-area .report-831 .grand-total td { background: #92CDDC; font-weight: bold; color: #FF0000; font-size: 13px; padding: 8px 2px; }
     #capture-area .report-831 .gt-num { color: #FF0000; }
+
+    /* 目标展示表样式 */
+    .target-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; margin-bottom: 0.5rem; }
+    .target-table th { background: #E8E8E8; color: #333; padding: 0.4rem 0.2rem; border: 1px solid #ccc; text-align: center; font-size: 0.68rem; }
+    .target-table td { padding: 0.4rem 0.2rem; border: 1px solid #ddd; text-align: center; font-weight: bold; }
+    .target-table .tname { text-align: left; padding-left: 0.4rem; font-weight: normal; white-space: nowrap; font-size: 0.68rem; }
   </style>
 </head>
 <body>
@@ -30,7 +37,7 @@
   </div>
 
   <div class="tool-content">
-    <!-- Token设置（首次使用需要输入一次） -->
+    <!-- Token设置 -->
     <div id="tokenSetup" style="display:none;background:#FFF3E0;border:1px solid #FFB74D;border-radius:8px;padding:0.8rem;margin-bottom:0.8rem;">
       <p style="font-size:0.8rem;color:#E65100;margin-bottom:0.5rem;">首次使用请输入授权码（只需输入一次，自动保存）</p>
       <div style="display:flex;gap:0.5rem;">
@@ -51,13 +58,23 @@
     <!-- 城东 -->
     <div class="section">
       <div class="section-title east">城东分局（张嘉辰 / 胡慧敏）</div>
+      <!-- 目标表（只读） -->
+      <table class="target-table">
+        <thead>
+          <tr>
+            <th style="width:35%">厅店</th>
+            <th>集智目标</th>
+            <th>全家福目标</th>
+            <th>终端目标</th>
+          </tr>
+        </thead>
+        <tbody id="eastTargetBody"></tbody>
+      </table>
+      <!-- 填写表（当日+累计，6列） -->
       <table class="input-table">
         <thead>
           <tr>
             <th style="width:25%">厅店</th>
-            <th>集智<br>目标</th>
-            <th>全家福<br>目标</th>
-            <th>终端<br>目标</th>
             <th>当日<br>集智</th>
             <th>当日<br>全家福</th>
             <th>当日<br>终端</th>
@@ -78,13 +95,23 @@
     <!-- 城西 -->
     <div class="section">
       <div class="section-title west">城西分局（钱亚蓉 / 王小兰）</div>
+      <!-- 目标表（只读） -->
+      <table class="target-table">
+        <thead>
+          <tr>
+            <th style="width:35%">厅店</th>
+            <th>集智目标</th>
+            <th>全家福目标</th>
+            <th>终端目标</th>
+          </tr>
+        </thead>
+        <tbody id="westTargetBody"></tbody>
+      </table>
+      <!-- 填写表（当日+累计，6列） -->
       <table class="input-table">
         <thead>
           <tr>
             <th style="width:25%">厅店</th>
-            <th>集智<br>目标</th>
-            <th>全家福<br>目标</th>
-            <th>终端<br>目标</th>
             <th>当日<br>集智</th>
             <th>当日<br>全家福</th>
             <th>当日<br>终端</th>
@@ -117,11 +144,11 @@
     <table class="report report-831">
       <tr class="title-row"><td colspan="16" id="titleCell">京山城市分局"831"实战业务发展通报（8.26日20:00分）</td></tr>
       <tr class="hdr">
-        <td style="width:5%">分局</td><td style="width:5%">分局长</td><td style="width:5%">渠道经理</td><td style="width:15%">厅店名称</td>
-        <td style="width:5.5%">集智目标</td><td style="width:5.5%">全家福目标</td><td style="width:6.5%">终端合约目标</td>
-        <td style="width:6%">当日集智完成</td><td style="width:6%">当日全家福完成</td><td style="width:6.5%">当日终端合约完成</td>
-        <td style="width:6%">集智累计完成</td><td style="width:6%">全家福累计完成</td><td style="width:6.5%">终端合约累计完成</td>
-        <td style="width:5.5%">集智欠产</td><td style="width:5.5%">全家福欠产</td><td style="width:6%">终端合约欠产</td>
+        <td>分局</td><td>分局长</td><td>渠道经理</td><td>厅店名称</td>
+        <td>集智目标</td><td>全家福目标</td><td>终端合约目标</td>
+        <td>当日集智完成</td><td>当日全家福完成</td><td>当日终端合约完成</td>
+        <td>集智累计完成</td><td>全家福累计完成</td><td>终端合约累计完成</td>
+        <td>集智欠产</td><td>全家福欠产</td><td>终端合约欠产</td>
       </tr>
       <tbody id="reportBody"></tbody>
     </table>
@@ -139,33 +166,48 @@
     { name: '京山城区大中路专营店', target: [3, 2, 1] },
     { name: '京山城区棉纺厂智慧家庭体验店', target: [3, 2, 1] }
   ];
-  // 9个可填字段：目标3 + 当日3 + 累计3（欠产自动算）
-  const fields = ['目标集智', '目标全家福', '目标终端', '当日集智', '当日全家福', '当日终端', '累计集智', '累计全家福', '累计终端'];
+  // 6个可填字段：当日3 + 累计3（目标固定不可填，欠产自动算）
+  const fields = ['当日集智', '当日全家福', '当日终端', '累计集智', '累计全家福', '累计终端'];
 
   function initTables() {
-    const eastBody = document.getElementById('eastBody');
-    eastStores.forEach((store, i) => {
-      const tr = document.createElement('tr');
+    // 城东目标表（只读）
+    var etBody = document.getElementById('eastTargetBody');
+    eastStores.forEach(function(store) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td class="tname">' + store.name + '</td>' +
+        '<td>' + store.target[0] + '</td><td>' + store.target[1] + '</td><td>' + store.target[2] + '</td>';
+      etBody.appendChild(tr);
+    });
+    // 城东填写表
+    var eBody = document.getElementById('eastBody');
+    eastStores.forEach(function(store, i) {
+      var tr = document.createElement('tr');
       tr.className = 'east-bg';
-      // 预填目标值
-      const cells = fields.map(function(f, j) {
-        var preset = j < 3 ? store.target[j] : 0;
-        return '<td><input type="number" id="east_' + i + '_' + j + '" value="' + preset + '" step="0.5" onfocus="this.select()"></td>';
+      var cells = fields.map(function(f, j) {
+        return '<td><input type="number" id="east_' + i + '_' + j + '" value="0" step="0.5" onfocus="this.select()"></td>';
       }).join('');
       tr.innerHTML = '<td class="store-name">' + store.name + '</td>' + cells;
-      eastBody.appendChild(tr);
+      eBody.appendChild(tr);
     });
 
-    const westBody = document.getElementById('westBody');
-    westStores.forEach((store, i) => {
-      const tr = document.createElement('tr');
+    // 城西目标表（只读）
+    var wtBody = document.getElementById('westTargetBody');
+    westStores.forEach(function(store) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td class="tname">' + store.name + '</td>' +
+        '<td>' + store.target[0] + '</td><td>' + store.target[1] + '</td><td>' + store.target[2] + '</td>';
+      wtBody.appendChild(tr);
+    });
+    // 城西填写表
+    var wBody = document.getElementById('westBody');
+    westStores.forEach(function(store, i) {
+      var tr = document.createElement('tr');
       tr.className = 'west-bg';
-      const cells = fields.map(function(f, j) {
-        var preset = j < 3 ? store.target[j] : 0;
-        return '<td><input type="number" id="west_' + i + '_' + j + '" value="' + preset + '" step="0.5" onfocus="this.select()"></td>';
+      var cells = fields.map(function(f, j) {
+        return '<td><input type="number" id="west_' + i + '_' + j + '" value="0" step="0.5" onfocus="this.select()"></td>';
       }).join('');
       tr.innerHTML = '<td class="store-name">' + store.name + '</td>' + cells;
-      westBody.appendChild(tr);
+      wBody.appendChild(tr);
     });
 
     var now = new Date();
@@ -182,10 +224,7 @@
 
   function setupToken() {
     var token = document.getElementById('tokenInput').value.trim();
-    if (!token) {
-      alert('请输入授权码');
-      return;
-    }
+    if (!token) { alert('请输入授权码'); return; }
     saveToken(token);
     document.getElementById('tokenSetup').style.display = 'none';
     document.getElementById('syncStatus').textContent = '授权成功，正在加载云端数据...';
@@ -214,18 +253,22 @@
   function resetForm() {
     eastStores.forEach(function(store, i) {
       fields.forEach(function(f, j) {
-        document.getElementById('east_' + i + '_' + j).value = j < 3 ? store.target[j] : 0;
+        var el = document.getElementById('east_' + i + '_' + j);
+        if (el) el.value = 0;
       });
     });
     westStores.forEach(function(store, i) {
       fields.forEach(function(f, j) {
-        document.getElementById('west_' + i + '_' + j).value = j < 3 ? store.target[j] : 0;
+        var el = document.getElementById('west_' + i + '_' + j);
+        if (el) el.value = 0;
       });
     });
   }
 
   function getVal(id) {
-    var v = parseFloat(document.getElementById(id).value);
+    var el = document.getElementById(id);
+    if (!el) return 0;
+    var v = parseFloat(el.value);
     return isNaN(v) ? 0 : v;
   }
 
@@ -233,20 +276,26 @@
     return v % 1 === 0 ? v.toString() : v.toFixed(1);
   }
 
-  // 收集一侧数据（不含欠产）
+  // 收集一侧填写数据（当日3+累计3=6个值）
   function collectData(side, stores) {
     return stores.map(function(store, i) {
       return fields.map(function(f, j) { return getVal(side + '_' + i + '_' + j); });
     });
   }
 
-  // 填充数据
+  // 填充云端数据到表单
   function fillData(data) {
     resetForm();
     if (data.date) document.getElementById('dateInput').value = data.date;
+    // 兼容旧格式（9列：目标3+当日3+累计3）与新格式（6列：当日3+累计3）
+    function adaptRow(row) {
+      if (row.length === 9) return row.slice(3); // 旧格式去掉前3个目标
+      return row; // 新格式直接用
+    }
     if (data.east && data.east.length) {
       data.east.forEach(function(row, i) {
-        row.forEach(function(v, j) {
+        var adapted = adaptRow(row);
+        adapted.forEach(function(v, j) {
           var el = document.getElementById('east_' + i + '_' + j);
           if (el) el.value = v;
         });
@@ -254,7 +303,8 @@
     }
     if (data.west && data.west.length) {
       data.west.forEach(function(row, i) {
-        row.forEach(function(v, j) {
+        var adapted = adaptRow(row);
+        adapted.forEach(function(v, j) {
           var el = document.getElementById('west_' + i + '_' + j);
           if (el) el.value = v;
         });
@@ -264,17 +314,13 @@
 
   async function saveEast() {
     var dateStr = document.getElementById('dateInput').value;
-    if (!dateStr) {
-      alert('请先填写通报日期');
-      return;
-    }
+    if (!dateStr) { alert('请先填写通报日期'); return; }
     var eastData = collectData('east', eastStores);
     var existing = await loadFromGitHub831(dateStr);
     var data = existing || { date: dateStr, west: [] };
     data.date = dateStr;
     data.east = eastData;
     data.savedAt = new Date().toISOString();
-
     var st = document.getElementById('eastSaveStatus');
     st.textContent = '正在保存城东数据...';
     st.style.color = '#999';
@@ -290,17 +336,13 @@
 
   async function saveWest() {
     var dateStr = document.getElementById('dateInput').value;
-    if (!dateStr) {
-      alert('请先填写通报日期');
-      return;
-    }
+    if (!dateStr) { alert('请先填写通报日期'); return; }
     var westData = collectData('west', westStores);
     var existing = await loadFromGitHub831(dateStr);
     var data = existing || { date: dateStr, east: [] };
     data.date = dateStr;
     data.west = westData;
     data.savedAt = new Date().toISOString();
-
     var st = document.getElementById('westSaveStatus');
     st.textContent = '正在保存城西数据...';
     st.style.color = '#999';
@@ -317,7 +359,8 @@
   function clearEast() {
     eastStores.forEach(function(store, i) {
       fields.forEach(function(f, j) {
-        document.getElementById('east_' + i + '_' + j).value = j < 3 ? store.target[j] : 0;
+        var el = document.getElementById('east_' + i + '_' + j);
+        if (el) el.value = 0;
       });
     });
     document.getElementById('eastSaveStatus').textContent = '';
@@ -326,29 +369,42 @@
   function clearWest() {
     westStores.forEach(function(store, i) {
       fields.forEach(function(f, j) {
-        document.getElementById('west_' + i + '_' + j).value = j < 3 ? store.target[j] : 0;
+        var el = document.getElementById('west_' + i + '_' + j);
+        if (el) el.value = 0;
       });
     });
     document.getElementById('westSaveStatus').textContent = '';
   }
 
-  // 生成通报图（欠产=目标-累计完成，自动计算）
+  // 生成通报图（目标从store.target取，当日/累计从输入框取，欠产=目标-累计）
   function generateReport() {
     var dateStr = document.getElementById('dateInput').value || '8月25日';
-    // 标题：京山城市分局"831"实战业务发展通报（8.26日20:00分）
     var titleDate = dateStr.replace('月', '.').replace('日', '');
     document.getElementById('titleCell').textContent = '京山城市分局"831"实战业务发展通报（' + titleDate + '日20:00分）';
 
-    var eastData = collectData('east', eastStores);
-    var westData = collectData('west', westStores);
+    // 收集填写数据（当日3+累计3）
+    var eastInput = collectData('east', eastStores);
+    var westInput = collectData('west', westStores);
 
-    // 单行数据：目标3 + 当日3 + 累计3 + 欠产3（自动算）
+    // 组装完整行数据：目标3 + 当日3 + 累计3（从store.target和input组合）
+    function fullRow(stores, input) {
+      return stores.map(function(store, i) {
+        var t = store.target;
+        var d = input[i].slice(0, 3); // 当日
+        var c = input[i].slice(3, 6); // 累计
+        return t.concat(d, c); // [目标3, 当日3, 累计3] = 9个值
+      });
+    }
+    var eastData = fullRow(eastStores, eastInput);
+    var westData = fullRow(westStores, westInput);
+
+    // 单行HTML（目标3+当日3+累计3+欠产3=12个数据列 + 厅店名=13列）
     function rowHtml(rowData, storeName) {
       var target = rowData.slice(0, 3);
       var day = rowData.slice(3, 6);
       var cum = rowData.slice(6, 9);
       var qian = [target[0]-cum[0], target[1]-cum[1], target[2]-cum[2]];
-      var h = '<td style="text-align:left;padding-left:6px">' + storeName + '</td>';
+      var h = '<td style="text-align:left;padding-left:5px;white-space:nowrap">' + storeName + '</td>';
       target.forEach(function(v) { h += '<td>' + fmt(v) + '</td>'; });
       day.forEach(function(v) { h += '<td>' + fmt(v) + '</td>'; });
       cum.forEach(function(v) { h += '<td>' + fmt(v) + '</td>'; });
@@ -356,7 +412,7 @@
       return h;
     }
 
-    // 合计行（前4列合并为一个"合计"单元格）
+    // 合计行（前4列合并，后12列红色加粗）
     function sumRowHtml(label, sum) {
       var target = sum.slice(0, 3), day = sum.slice(3, 6), cum = sum.slice(6, 9);
       var qian = target.map(function(v, j) { return v - cum[j]; });
@@ -376,7 +432,7 @@
     var grandTotal = eastSum.map(function(v, j) { return v + westSum[j]; });
 
     var html = '';
-    // 城东
+    // 城东：3家店 + 合计 = 4行，rowspan=4
     html += '<tr class="east-row"><td rowspan="4">城东分局</td><td rowspan="3">张嘉辰</td><td rowspan="3">胡慧敏</td>';
     eastStores.forEach(function(store, i) {
       if (i > 0) html += '<tr class="east-row">';
@@ -385,7 +441,7 @@
     });
     html += '<tr class="east-sum">' + sumRowHtml('合计', eastSum) + '</tr>';
 
-    // 城西
+    // 城西：4家店 + 合计 = 5行，rowspan=5
     html += '<tr class="west-row"><td rowspan="5">城西分局</td><td rowspan="4">钱亚蓉</td><td rowspan="4">王小兰</td>';
     westStores.forEach(function(store, i) {
       if (i > 0) html += '<tr class="west-row">';
@@ -394,7 +450,7 @@
     });
     html += '<tr class="west-sum">' + sumRowHtml('合计', westSum) + '</tr>';
 
-    // 总计
+    // 总计行
     html += '<tr class="grand-total"><td colspan="4" style="font-weight:bold">总计</td>';
     grandTotal.forEach(function(v, j) {
       if (j < 9) html += '<td class="gt-num">' + fmt(v) + '</td>';
@@ -411,14 +467,17 @@
     html2canvas(captureEl, {
       backgroundColor: '#ffffff',
       scale: 2,
-      width: 960,
-      windowWidth: 960
+      width: 1200,
+      windowWidth: 1200
     }).then(function(canvas) {
       var img = canvas.toDataURL('image/png');
       document.getElementById('previewImg').src = img;
       document.getElementById('previewArea').style.display = 'block';
       captureEl.style.display = 'none';
       document.getElementById('previewImg').scrollIntoView({ behavior: 'smooth' });
+    }).catch(function(err) {
+      alert('生成图片失败：' + err.message);
+      captureEl.style.display = 'none';
     });
   }
 
