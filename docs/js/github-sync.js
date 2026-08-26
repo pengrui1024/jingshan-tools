@@ -147,3 +147,101 @@ async function loadGitHubData(dateStr) {
   }
   return false;
 }
+
+/* ========== 831 专用 ========== */
+const GITHUB_831_PATH = 'data/831';
+
+// 保存831数据到GitHub（带SHA缓存与冲突重试）
+async function saveToGitHub831(dateStr, data) {
+  const path = GITHUB_831_PATH + '/' + dateStr + '.json';
+  const content = utf8ToBase64(JSON.stringify(data, null, 2));
+
+  let lastErr = null;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    let sha = shaCache[path];
+    if (!sha) {
+      sha = await getFileSha831(path);
+      if (sha) shaCache[path] = sha;
+    }
+
+    const body = {
+      message: '更新831数据：' + dateStr,
+      branch: GITHUB_CONFIG.branch,
+      content: content
+    };
+    if (sha) body.sha = sha;
+
+    const resp = await fetch('https://api.github.com/repos/' + GITHUB_CONFIG.owner + '/' + GITHUB_CONFIG.repo + '/contents/' + path, {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'Bearer ' + GITHUB_CONFIG.token,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (resp.ok) {
+      const result = await resp.json();
+      if (result && result.content) shaCache[path] = result.content.sha;
+      return result;
+    }
+
+    const err = await resp.json();
+    lastErr = err;
+    if (resp.status === 409 || (err.message && err.message.indexOf('does not match') >= 0)) {
+      delete shaCache[path];
+      await new Promise(r => setTimeout(r, 800));
+      continue;
+    }
+    throw new Error('保存失败：' + (err.message || '未知错误'));
+  }
+  throw new Error('保存失败：' + (lastErr && lastErr.message || '未知错误'));
+}
+
+// 读取831指定日期数据
+async function loadFromGitHub831(dateStr) {
+  const path = GITHUB_831_PATH + '/' + dateStr + '.json';
+  try {
+    const ts = Date.now();
+    const resp = await fetch('https://api.github.com/repos/' + GITHUB_CONFIG.owner + '/' + GITHUB_CONFIG.repo + '/contents/' + path + '?ref=' + GITHUB_CONFIG.branch + '&t=' + ts, {
+      headers: {
+        'Authorization': 'Bearer ' + GITHUB_CONFIG.token,
+        'Accept': 'application/vnd.github+json'
+      }
+    });
+    if (!resp.ok) return null;
+    const result = await resp.json();
+    return JSON.parse(base64ToUtf8(result.content));
+  } catch(e) {
+    return null;
+  }
+}
+
+// 获取831文件SHA
+async function getFileSha831(path) {
+  try {
+    const ts = Date.now();
+    const resp = await fetch('https://api.github.com/repos/' + GITHUB_CONFIG.owner + '/' + GITHUB_CONFIG.repo + '/contents/' + path + '?ref=' + GITHUB_CONFIG.branch + '&t=' + ts, {
+      headers: {
+        'Authorization': 'Bearer ' + GITHUB_CONFIG.token,
+        'Accept': 'application/vnd.github+json'
+      }
+    });
+    if (resp.ok) {
+      const existing = await resp.json();
+      return existing.sha || null;
+    }
+  } catch(e) { /* 文件不存在，正常 */ }
+  return null;
+}
+
+// 831加载数据并填充表单
+async function loadGitHubData831(dateStr) {
+  const data = await loadFromGitHub831(dateStr);
+  if (data) {
+    fillData(data);
+    return true;
+  }
+  return false;
+}
