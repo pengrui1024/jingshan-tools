@@ -58,7 +58,7 @@
     <!-- 城东 -->
     <div class="section">
       <div class="section-title east">城东分局（张嘉辰 / 胡慧敏）</div>
-      <!-- 目标表（只读） -->
+      <!-- 目标表（可编辑） -->
       <table class="target-table">
         <thead>
           <tr>
@@ -95,7 +95,7 @@
     <!-- 城西 -->
     <div class="section">
       <div class="section-title west">城西分局（钱亚蓉 / 王小兰）</div>
-      <!-- 目标表（只读） -->
+      <!-- 目标表（可编辑） -->
       <table class="target-table">
         <thead>
           <tr>
@@ -170,12 +170,14 @@
   const fields = ['当日集智', '当日全家福', '当日终端', '累计集智', '累计全家福', '累计终端'];
 
   function initTables() {
-    // 城东目标表（只读）
+    // 城东目标表（可编辑）
     var etBody = document.getElementById('eastTargetBody');
-    eastStores.forEach(function(store) {
+    eastStores.forEach(function(store, i) {
       var tr = document.createElement('tr');
       tr.innerHTML = '<td class="tname">' + store.name + '</td>' +
-        '<td>' + store.target[0] + '</td><td>' + store.target[1] + '</td><td>' + store.target[2] + '</td>';
+        '<td><input type="number" id="east_t_' + i + '_0" value="' + store.target[0] + '" step="0.5" style="width:100%;max-width:50px;text-align:center;border:1px solid #ddd;border-radius:4px;padding:0.3rem 0.1rem;font-size:0.85rem;font-weight:bold" onfocus="this.select()"></td>' +
+        '<td><input type="number" id="east_t_' + i + '_1" value="' + store.target[1] + '" step="0.5" style="width:100%;max-width:50px;text-align:center;border:1px solid #ddd;border-radius:4px;padding:0.3rem 0.1rem;font-size:0.85rem;font-weight:bold" onfocus="this.select()"></td>' +
+        '<td><input type="number" id="east_t_' + i + '_2" value="' + store.target[2] + '" step="0.5" style="width:100%;max-width:50px;text-align:center;border:1px solid #ddd;border-radius:4px;padding:0.3rem 0.1rem;font-size:0.85rem;font-weight:bold" onfocus="this.select()"></td>';
       etBody.appendChild(tr);
     });
     // 城东填写表
@@ -190,12 +192,14 @@
       eBody.appendChild(tr);
     });
 
-    // 城西目标表（只读）
+    // 城西目标表（可编辑）
     var wtBody = document.getElementById('westTargetBody');
-    westStores.forEach(function(store) {
+    westStores.forEach(function(store, i) {
       var tr = document.createElement('tr');
       tr.innerHTML = '<td class="tname">' + store.name + '</td>' +
-        '<td>' + store.target[0] + '</td><td>' + store.target[1] + '</td><td>' + store.target[2] + '</td>';
+        '<td><input type="number" id="west_t_' + i + '_0" value="' + store.target[0] + '" step="0.5" style="width:100%;max-width:50px;text-align:center;border:1px solid #ddd;border-radius:4px;padding:0.3rem 0.1rem;font-size:0.85rem;font-weight:bold" onfocus="this.select()"></td>' +
+        '<td><input type="number" id="west_t_' + i + '_1" value="' + store.target[1] + '" step="0.5" style="width:100%;max-width:50px;text-align:center;border:1px solid #ddd;border-radius:4px;padding:0.3rem 0.1rem;font-size:0.85rem;font-weight:bold" onfocus="this.select()"></td>' +
+        '<td><input type="number" id="west_t_' + i + '_2" value="' + store.target[2] + '" step="0.5" style="width:100%;max-width:50px;text-align:center;border:1px solid #ddd;border-radius:4px;padding:0.3rem 0.1rem;font-size:0.85rem;font-weight:bold" onfocus="this.select()"></td>';
       wtBody.appendChild(tr);
     });
     // 城西填写表
@@ -287,6 +291,23 @@
   function fillData(data) {
     resetForm();
     if (data.date) document.getElementById('dateInput').value = data.date;
+    // 填充目标数据（如果有保存）
+    if (data.eastTargets && data.eastTargets.length) {
+      data.eastTargets.forEach(function(row, i) {
+        row.forEach(function(v, j) {
+          var el = document.getElementById('east_t_' + i + '_' + j);
+          if (el) el.value = v;
+        });
+      });
+    }
+    if (data.westTargets && data.westTargets.length) {
+      data.westTargets.forEach(function(row, i) {
+        row.forEach(function(v, j) {
+          var el = document.getElementById('west_t_' + i + '_' + j);
+          if (el) el.value = v;
+        });
+      });
+    }
     // 兼容旧格式（9列：目标3+当日3+累计3）与新格式（6列：当日3+累计3）
     function adaptRow(row) {
       if (row.length === 9) return row.slice(3); // 旧格式去掉前3个目标
@@ -312,14 +333,27 @@
     }
   }
 
+  // 收集目标数据
+  function collectTargets(side, stores) {
+    return stores.map(function(store, i) {
+      return [0,1,2].map(function(j) {
+        var el = document.getElementById(side + '_t_' + i + '_' + j);
+        var v = parseFloat(el ? el.value : 0);
+        return isNaN(v) ? 0 : v;
+      });
+    });
+  }
+
   async function saveEast() {
     var dateStr = document.getElementById('dateInput').value;
     if (!dateStr) { alert('请先填写通报日期'); return; }
     var eastData = collectData('east', eastStores);
+    var eastTargets = collectTargets('east', eastStores);
     var existing = await loadFromGitHub831(dateStr);
     var data = existing || { date: dateStr, west: [] };
     data.date = dateStr;
     data.east = eastData;
+    data.eastTargets = eastTargets;
     data.savedAt = new Date().toISOString();
     var st = document.getElementById('eastSaveStatus');
     st.textContent = '正在保存城东数据...';
@@ -338,10 +372,12 @@
     var dateStr = document.getElementById('dateInput').value;
     if (!dateStr) { alert('请先填写通报日期'); return; }
     var westData = collectData('west', westStores);
+    var westTargets = collectTargets('west', westStores);
     var existing = await loadFromGitHub831(dateStr);
     var data = existing || { date: dateStr, east: [] };
     data.date = dateStr;
     data.west = westData;
+    data.westTargets = westTargets;
     data.savedAt = new Date().toISOString();
     var st = document.getElementById('westSaveStatus');
     st.textContent = '正在保存城西数据...';
@@ -386,17 +422,24 @@
     var eastInput = collectData('east', eastStores);
     var westInput = collectData('west', westStores);
 
-    // 组装完整行数据：目标3 + 当日3 + 累计3（从store.target和input组合）
-    function fullRow(stores, input) {
+    // 从目标表输入框读取目标值
+    function getTargetVal(side, i, j) {
+      var el = document.getElementById(side + '_t_' + i + '_' + j);
+      var v = parseFloat(el ? el.value : 0);
+      return isNaN(v) ? 0 : v;
+    }
+
+    // 组装完整行数据：目标3 + 当日3 + 累计3
+    function fullRow(stores, input, side) {
       return stores.map(function(store, i) {
-        var t = store.target;
+        var t = [getTargetVal(side, i, 0), getTargetVal(side, i, 1), getTargetVal(side, i, 2)];
         var d = input[i].slice(0, 3); // 当日
         var c = input[i].slice(3, 6); // 累计
         return t.concat(d, c); // [目标3, 当日3, 累计3] = 9个值
       });
     }
-    var eastData = fullRow(eastStores, eastInput);
-    var westData = fullRow(westStores, westInput);
+    var eastData = fullRow(eastStores, eastInput, 'east');
+    var westData = fullRow(westStores, westInput, 'west');
 
     // 单行HTML（目标3+当日3+累计3+欠产3=12个数据列 + 厅店名=13列）
     function rowHtml(rowData, storeName) {
@@ -412,11 +455,11 @@
       return h;
     }
 
-    // 合计行（前4列合并，后12列红色加粗）
+    // 合计行（前4列中第1列被rowspan占用，合并后3列+厅店列）
     function sumRowHtml(label, sum) {
       var target = sum.slice(0, 3), day = sum.slice(3, 6), cum = sum.slice(6, 9);
       var qian = target.map(function(v, j) { return v - cum[j]; });
-      var h = '<td colspan="4" style="font-weight:bold">' + label + '</td>';
+      var h = '<td colspan="3" style="font-weight:bold">' + label + '</td>';
       target.forEach(function(v) { h += '<td style="color:#FF0000;font-weight:bold">' + fmt(v) + '</td>'; });
       day.forEach(function(v) { h += '<td style="color:#FF0000;font-weight:bold">' + fmt(v) + '</td>'; });
       cum.forEach(function(v) { h += '<td style="color:#FF0000;font-weight:bold">' + fmt(v) + '</td>'; });
