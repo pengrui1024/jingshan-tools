@@ -142,6 +142,23 @@ table.input-table td input:focus { border-color: #C00000; outline: none; }
 .btn-history { background: #555; margin-left: 0.5rem; }
 .btn-history:active { transform: scale(0.97); }
 
+/* 分区按钮（保存/清除） */
+.section-btns { display: flex; gap: 0.6rem; justify-content: center; margin-top: 0.6rem; }
+.btn-sm {
+  flex: 1;
+  border: none;
+  padding: 0.6rem 0.5rem;
+  font-size: 0.85rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+.btn-sm:active { transform: scale(0.97); }
+.btn-save-sm { background: #2E7D32; color: #fff; }
+.btn-clear-sm { background: #ef5350; color: #fff; }
+.save-status { text-align: center; font-size: 0.72rem; color: #999; min-height: 1rem; margin-top: 0.4rem; }
+
 /* 预览区 */
 .preview-area { text-align: center; margin-top: 1rem; }
 .preview-area img {

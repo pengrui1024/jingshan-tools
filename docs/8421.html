@@ -50,6 +50,11 @@
         </thead>
         <tbody id="eastBody"></tbody>
       </table>
+      <div class="section-btns">
+        <button class="btn-sm btn-save-sm" onclick="saveEast()">保存城东数据</button>
+        <button class="btn-sm btn-clear-sm" onclick="clearEast()">清除城东数据</button>
+      </div>
+      <div id="eastSaveStatus" class="save-status"></div>
     </div>
 
     <!-- 城西 -->
@@ -69,30 +74,20 @@
         </thead>
         <tbody id="westBody"></tbody>
       </table>
+      <div class="section-btns">
+        <button class="btn-sm btn-save-sm" onclick="saveWest()">保存城西数据</button>
+        <button class="btn-sm btn-clear-sm" onclick="clearWest()">清除城西数据</button>
+      </div>
+      <div id="westSaveStatus" class="save-status"></div>
     </div>
 
     <div class="btn-wrap">
-      <button class="btn" onclick="saveAndGenerate()">保存并生成通报图</button>
-      <button class="btn btn-history" onclick="showHistory()">云端记录</button>
+      <button class="btn" onclick="generateReport()">生成通报图</button>
     </div>
-
-    <!-- 保存状态 -->
-    <div id="saveStatus" style="text-align:center;font-size:0.75rem;color:#999;min-height:1rem;margin-bottom:0.5rem;"></div>
 
     <div class="preview-area" id="previewArea" style="display:none;">
       <p style="color:#888;font-size:0.8rem;margin-bottom:0.6rem;">长按图片可保存或转发</p>
       <img id="previewImg" alt="通报预览">
-    </div>
-  </div>
-
-  <!-- 历史记录弹窗 -->
-  <div id="historyModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;">
-    <div style="background:#fff;max-width:500px;margin:60px auto;border-radius:12px;max-height:80vh;overflow-y:auto;">
-      <div style="padding:1rem 1.2rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;">
-        <h3 style="font-size:1rem;">云端历史记录</h3>
-        <span onclick="closeHistory()" style="font-size:1.4rem;cursor:pointer;color:#999;">×</span>
-      </div>
-      <div id="historyList" style="padding:0.8rem;"></div>
     </div>
   </div>
 
@@ -145,6 +140,7 @@
       westBody.appendChild(tr);
     });
 
+    // 默认日期：当天
     var now = new Date();
     document.getElementById('dateInput').value = (now.getMonth() + 1) + '月' + now.getDate() + '日';
 
@@ -172,7 +168,7 @@
     onDateChange();
   }
 
-  // 日期变更时从云端加载数据
+  // 日期变更时从云端加载数据（改日期即可查看历史）
   async function onDateChange() {
     var dateStr = document.getElementById('dateInput').value;
     if (!dateStr) return;
@@ -187,6 +183,8 @@
       document.getElementById('syncStatus').style.color = '#999';
       resetForm();
     }
+    document.getElementById('eastSaveStatus').textContent = '';
+    document.getElementById('westSaveStatus').textContent = '';
   }
 
   function resetForm() {
@@ -202,6 +200,7 @@
     });
   }
 
+  // 读取表单数据（整体）
   function collectData() {
     var data = {
       date: document.getElementById('dateInput').value,
@@ -218,9 +217,11 @@
     return data;
   }
 
+  // 填充数据到表单（先重置再填充，避免残留）
   function fillData(data) {
+    resetForm();
     if (data.date) document.getElementById('dateInput').value = data.date;
-    if (data.east) {
+    if (data.east && data.east.length) {
       data.east.forEach(function(row, i) {
         row.forEach(function(v, j) {
           var el = document.getElementById('east_' + i + '_' + j);
@@ -228,7 +229,7 @@
         });
       });
     }
-    if (data.west) {
+    if (data.west && data.west.length) {
       data.west.forEach(function(row, i) {
         row.forEach(function(v, j) {
           var el = document.getElementById('west_' + i + '_' + j);
@@ -236,26 +237,6 @@
         });
       });
     }
-  }
-
-  async function saveAndGenerate() {
-    var dateStr = document.getElementById('dateInput').value;
-    if (!dateStr) {
-      alert('请先填写通报日期');
-      return;
-    }
-    var data = collectData();
-    document.getElementById('saveStatus').textContent = '正在保存到云端...';
-    document.getElementById('saveStatus').style.color = '#999';
-    try {
-      await saveToGitHub(dateStr, data);
-      document.getElementById('saveStatus').textContent = '已保存到云端';
-      document.getElementById('saveStatus').style.color = '#4CAF50';
-    } catch(e) {
-      document.getElementById('saveStatus').textContent = '保存失败：' + e.message;
-      document.getElementById('saveStatus').style.color = '#F44336';
-    }
-    generateReport();
   }
 
   function getVal(id) {
@@ -267,6 +248,88 @@
     return v % 1 === 0 ? v.toString() : v.toFixed(1);
   }
 
+  // 保存城东数据（只更新east，保留云端已有west）
+  async function saveEast() {
+    var dateStr = document.getElementById('dateInput').value;
+    if (!dateStr) {
+      alert('请先填写通报日期');
+      return;
+    }
+    var eastData = eastStores.map(function(s, i) {
+      return fields.map(function(f, j) { return getVal('east_' + i + '_' + j); });
+    });
+
+    // 读取云端现有数据（若有），保留另一侧已保存的数据
+    var existing = await loadFromGitHub(dateStr);
+    var data = existing || { date: dateStr, west: [] };
+    data.date = dateStr;
+    data.east = eastData;
+    data.savedAt = new Date().toISOString();
+
+    var st = document.getElementById('eastSaveStatus');
+    st.textContent = '正在保存城东数据...';
+    st.style.color = '#999';
+    try {
+      await saveToGitHub(dateStr, data);
+      st.textContent = '城东数据已保存到云端';
+      st.style.color = '#4CAF50';
+    } catch(e) {
+      st.textContent = '保存失败：' + e.message;
+      st.style.color = '#F44336';
+    }
+  }
+
+  // 保存城西数据（保留云端已有east）
+  async function saveWest() {
+    var dateStr = document.getElementById('dateInput').value;
+    if (!dateStr) {
+      alert('请先填写通报日期');
+      return;
+    }
+    var westData = westStores.map(function(s, i) {
+      return fields.map(function(f, j) { return getVal('west_' + i + '_' + j); });
+    });
+
+    var existing = await loadFromGitHub(dateStr);
+    var data = existing || { date: dateStr, east: [] };
+    data.date = dateStr;
+    data.west = westData;
+    data.savedAt = new Date().toISOString();
+
+    var st = document.getElementById('westSaveStatus');
+    st.textContent = '正在保存城西数据...';
+    st.style.color = '#999';
+    try {
+      await saveToGitHub(dateStr, data);
+      st.textContent = '城西数据已保存到云端';
+      st.style.color = '#4CAF50';
+    } catch(e) {
+      st.textContent = '保存失败：' + e.message;
+      st.style.color = '#F44336';
+    }
+  }
+
+  // 清除城东表单数据
+  function clearEast() {
+    eastStores.forEach(function(s, i) {
+      fields.forEach(function(f, j) {
+        document.getElementById('east_' + i + '_' + j).value = '0';
+      });
+    });
+    document.getElementById('eastSaveStatus').textContent = '';
+  }
+
+  // 清除城西表单数据
+  function clearWest() {
+    westStores.forEach(function(s, i) {
+      fields.forEach(function(f, j) {
+        document.getElementById('west_' + i + '_' + j).value = '0';
+      });
+    });
+    document.getElementById('westSaveStatus').textContent = '';
+  }
+
+  // 生成通报图（基于当前表单数据）
   function generateReport() {
     var dateStr = document.getElementById('dateInput').value || '8月25日';
     document.getElementById('titleCell').textContent = '京山社区执行通报（' + dateStr + '）';
@@ -326,47 +389,6 @@
       captureEl.style.display = 'none';
       document.getElementById('previewImg').scrollIntoView({ behavior: 'smooth' });
     });
-  }
-
-  async function showHistory() {
-    var listEl = document.getElementById('historyList');
-    listEl.innerHTML = '<p style="text-align:center;color:#999;padding:2rem 0;">正在加载云端记录...</p>';
-    document.getElementById('historyModal').style.display = 'block';
-
-    var dates = await listGitHubData();
-    if (dates.length === 0) {
-      listEl.innerHTML = '<p style="text-align:center;color:#999;padding:2rem 0;">暂无云端记录</p>';
-      return;
-    }
-
-    var html = '';
-    for (var i = 0; i < dates.length; i++) {
-      var dateStr = dates[i];
-      var data = await loadFromGitHub(dateStr);
-      if (!data) continue;
-      var totals = [0,0,0,0,0,0];
-      data.east.forEach(function(row){ row.forEach(function(v,j){ totals[j]+=v; }); });
-      data.west.forEach(function(row){ row.forEach(function(v,j){ totals[j]+=v; }); });
-      html += '<div style="border:1px solid #eee;border-radius:8px;padding:0.8rem;margin-bottom:0.6rem;cursor:pointer;" onclick="loadHistoryData(\'' + dateStr + '\')">';
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
-      html += '<span style="font-weight:bold;font-size:0.95rem;">' + dateStr + '</span>';
-      html += '<span style="font-size:0.75rem;color:#999;">点击载入</span>';
-      html += '</div>';
-      html += '<div style="font-size:0.75rem;color:#888;margin-top:0.3rem;">总计：入户' + fmt(totals[0]) + ' / 录入' + fmt(totals[1]) + ' / 存量' + fmt(totals[3]) + ' / 集智' + fmt(totals[4]) + ' / 全家福' + fmt(totals[5]) + '</div>';
-      html += '</div>';
-    }
-    listEl.innerHTML = html;
-  }
-
-  async function loadHistoryData(dateStr) {
-    document.getElementById('dateInput').value = dateStr;
-    await loadGitHubData(dateStr);
-    closeHistory();
-    generateReport();
-  }
-
-  function closeHistory() {
-    document.getElementById('historyModal').style.display = 'none';
   }
 
   initTables();
