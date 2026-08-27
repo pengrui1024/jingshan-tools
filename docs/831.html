@@ -446,7 +446,7 @@
       var target = rowData.slice(0, 3);
       var day = rowData.slice(3, 6);
       var cum = rowData.slice(6, 9);
-      var qian = [target[0]-cum[0], target[1]-cum[1], target[2]-cum[2]];
+      var qian = [cum[0]-target[0], cum[1]-target[1], cum[2]-target[2]];
       var h = '<td style="text-align:left;padding-left:5px;white-space:nowrap">' + storeName + '</td>';
       target.forEach(function(v) { h += '<td>' + fmt(v) + '</td>'; });
       day.forEach(function(v) { h += '<td>' + fmt(v) + '</td>'; });
@@ -458,7 +458,7 @@
     // 合计行（前4列中第1列被rowspan占用，合并后3列+厅店列）
     function sumRowHtml(label, sum) {
       var target = sum.slice(0, 3), day = sum.slice(3, 6), cum = sum.slice(6, 9);
-      var qian = target.map(function(v, j) { return v - cum[j]; });
+      var qian = target.map(function(v, j) { return cum[j] - v; });
       var h = '<td colspan="3" style="font-weight:bold">' + label + '</td>';
       target.forEach(function(v) { h += '<td style="color:#FF0000;font-weight:bold">' + fmt(v) + '</td>'; });
       day.forEach(function(v) { h += '<td style="color:#FF0000;font-weight:bold">' + fmt(v) + '</td>'; });
@@ -498,7 +498,7 @@
     grandTotal.forEach(function(v, j) {
       if (j < 9) html += '<td class="gt-num">' + fmt(v) + '</td>';
     });
-    var gq = grandTotal.slice(0,3).map(function(v, j) { return v - grandTotal[6+j]; });
+    var gq = grandTotal.slice(0,3).map(function(v, j) { return grandTotal[6+j] - v; });
     gq.forEach(function(v) { html += '<td class="gt-num">' + fmt(v) + '</td>'; });
     html += '</tr>';
 
